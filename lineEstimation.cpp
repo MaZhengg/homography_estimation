@@ -19,20 +19,29 @@ int main(int argc, const char * argv[]) {
     Mat src = imread("chyehoo.png", 1);
     Mat src2 = imread("chyehoo2.png", 1);
     
-    vector<Vec4f> set1 { Vec4f(0,0,550,0), Vec4f(0,600,550,600), Vec4f(0,0,0,600), Vec4f(550,0,550,600), Vec4f(0,600,550,0) };
-    vector<Vec4f> set2 { Vec4f(0,0,550,0), Vec4f(0,600,550,600), Vec4f(0,0,0,600), Vec4f(550,0,550,600), Vec4f(0,600,550,0) };
-    
-    //vector<Vec4f> set2 { Vec4f(80,95,550,0), Vec4f(0,600,525,550), Vec4f(0,0,0,600), Vec4f(550,0,525,550), Vec4f(0,600,550,0) };
+    vector<Vec4f> set1 { Vec4f(0,0,550,0), Vec4f(0,600,550,600), Vec4f(0,0,0,600), Vec4f(550,0,550,600) };
+    //vector<Vec4f> set2 { Vec4f(0,0,550,0), Vec4f(0,600,550,600), Vec4f(0,0,0,600), Vec4f(550,0,550,600)};
+    vector<Vec4f> set2 { Vec4f(80,95,550,0), Vec4f(0,600,525,550), Vec4f(80,95,0,600), Vec4f(550,0,525,550)};
     
     vector<Vec3f> lines1 = vector<Vec3f>(set1.size());
     for(int i = 0; i < set1.size(); i++){
         lines1[i] = Vec3f(set1[i][0], set1[i][1], 1).cross( Vec3f(set1[i][2], set1[i][3], 1 ) );
+        if(lines1[i][2] != 0){
+            lines1[i][0] /= lines1[i][2];
+            lines1[i][1] /= lines1[i][2];
+            lines1[i][2] /= lines1[i][2];
+        }
         cout << "Line 1: " << lines1[i] << endl;
     }
     
     vector<Vec3f> lines2 = vector<Vec3f>(set1.size());
     for(int i = 0; i < set2.size(); i++){
         lines2[i] = Vec3f(set2[i][0], set2[i][1], 1).cross( Vec3f(set2[i][2], set2[i][3], 1 ) );
+        if(lines2[i][2] != 0){
+            lines2[i][0] /= lines2[i][2];
+            lines2[i][1] /= lines2[i][2];
+            lines2[i][2] /= lines2[i][2];
+        }
         cout << "Line 2: " << lines2[i] << endl;
     }
     
@@ -46,7 +55,7 @@ int main(int argc, const char * argv[]) {
         y = lines1[i][1];
         u = lines2[i][0];
         v = lines2[i][1];
-
+        
         Mat a1 = Mat(2, 9, CV_32F);
         
         a1.at<float>(0,0) = -u;
@@ -103,11 +112,14 @@ int main(int argc, const char * argv[]) {
     Mat distort;
     warpPerspective(src, distort, homography, Size(805, 871) );
     cout << "Homography: " << homography << endl;
-
+    for(int i = 0; i < set2.size(); i++){
+        line( src, Point(set2[i][0], set2[i][1]), Point(set2[i][2], set2[i][3]), Scalar(255,0,255), 2, 0);
+        line( src2, Point(set2[i][0], set2[i][1]), Point(set2[i][2], set2[i][3]), Scalar(255,0,255), 2, 0);
+        line( distort, Point(set2[i][0], set2[i][1]), Point(set2[i][2], set2[i][3]), Scalar(255,0,255), 2, 0);
+    }
     
+    imshow("src", src);
     imshow("src2", src2);
     imshow("distorted with DLT using lines", distort);
     waitKey();
-    
-    
 }
