@@ -20,7 +20,7 @@ Mat src;
 Mat HSV;
 Mat thresh;
 
-// Get gradient of given line
+/** Get gradient of given line */
 float getGradient(Vec4f v)
 {
     float vGrad;
@@ -35,22 +35,20 @@ float getGradient(Vec4f v)
 }
 
 
-// Compare lines by gradient
+/** Compare lines by gradient */
 bool compareVec(Vec4f v1, Vec4f v2)
 {
     return (getGradient(v1) < getGradient(v2));
 }
 
-
+/** Return vector of all detected Hough lines in given image */
 vector<Vec4f> getLines(String filename)
 {
-    //"chyehoo.png"
     src = imread(filename, 1);   // Read the file
     
     if(! src.data )                              // Check for invalid input
     {
         cout <<  "Could not open or find the image" << std::endl ;
-        //return vector<Vec4i> ret;
     }
     
     cvtColor(src, HSV, COLOR_BGR2HSV);
@@ -66,14 +64,12 @@ vector<Vec4f> getLines(String filename)
     vector<Vec4f> lines;
     HoughLinesP(dst, lines, 1, CV_PI/360, 240, 30, 45 );
     
+    /*
     sort(lines.begin(), lines.end(), compareVec); // Sort lines by gradient to make removing duplicates easier
     
     vector<Vec4f> cleanedLines;
-    
     for( size_t i = 0; i < lines.size(); i++ )
     {
-        //cout << getGradient(lines[i]) << endl;
-        
         // Remove lines that are likely to be the same as the previous line
         if ( ( getGradient(lines[i]) < getGradient(lines[i+1]) + 0.05 ) && ( getGradient(lines[i]) > getGradient(lines[i+1]) - 0.05 ))
         {
@@ -92,16 +88,17 @@ vector<Vec4f> getLines(String filename)
             }
         }
     }
+    */
     
     return lines;
 }
 
-
+/** Calculate the length of a line */
 float lineLength(Vec4f line){
     return sqrt( pow((line[2] - line[0]), 2) + pow((line[1] - line[3]), 2) ) ;
 }
 
-
+/** Calculate the distance between two lines */
 float lineDistance(Vec4f line1, Vec4f line2){
     
     Vec4f ac, bd, ad, bc;
@@ -113,7 +110,7 @@ float lineDistance(Vec4f line1, Vec4f line2){
     return min(    max( lineLength(ac),lineLength(bd)),     max( lineLength(ad),lineLength(bc))       );
 }
 
-
+/** Calculate the total distance between two line sets */
 float getSetDistance(vector<Vec4f> templateLines, vector<Vec4f> detectedLines){
     float totalDistance = 0.0;
     
@@ -133,25 +130,6 @@ float getSetDistance(vector<Vec4f> templateLines, vector<Vec4f> detectedLines){
     }
     
     return totalDistance;
-}
-
-
-Mat getNullSpace(cv::Mat p)
-{
-    SVD svd = cv::SVD(p, cv::SVD::FULL_UV);
-    Mat vt_ = svd.vt;
-    int i;
-    for (i = 1; i <= 3; i++)
-    {
-        if (p.at<double>(i - 1, i - 1) == 0)
-        {
-            break;
-        }
-    }
-    cv::Mat result = vt_(cv::Rect(0, i-1, p.cols, vt_.rows-i+1));
-    cv::Mat result_t;
-    cv::transpose(result, result_t);
-    return result_t;
 }
 
 
@@ -181,11 +159,7 @@ int main( int argc, char** argv )
             xStep += (l[2] - l[0])/10;
             yStep += (l[3] - l[1])/10;
         }
-        /*
-        srcPoints.push_back( Point(l[0], l[1]) );
-        srcPoints.push_back( Point(l[2], l[3]) );
-        srcPoints.push_back( Point( l[0]+(l[2]/2) , l[1]+(l[3]/2) ) );
-        */
+
         n += 2;
     }
     
@@ -202,28 +176,11 @@ int main( int argc, char** argv )
             xStep += (l[2] - l[0])/10;
             yStep += (l[3] - l[1])/10;
         }
-        /**
-        src2Points.push_back( Point(l[0], l[1]) );
-        src2Points.push_back( Point(l[2], l[3]) );
-        src2Points.push_back( Point( l[0]+(l[2]/2) , l[1]+(l[3]/2) ) );
-         */
+
         n += 2;
     }
     
-    //src2Points.push_back(   Point(0, 0)     );
-    
-    for(int i = 0; i < srcPoints.size(); i++){
-        //circle(src, srcPoints[i], 3, Scalar(255,0,0));
-    }
-    for(int i = 0; i < src2Points.size(); i++){
-        //circle(src2, src2Points[i], 3, Scalar(255,0,0));
-    }
-    
-    cout << "Points: "<< srcPoints.size() << ", " << src2Points.size() << endl;
-    //cout << "Check: "<< srcPoints.checkVector(2) << ", " << src2Points.checkVector(2) << endl;
-    
     vector<Vec4f> templateLines { Vec4f(0,0,550,0), Vec4f(0,600,550,600),  Vec4f(550,0,550,600), Vec4f(0,600,550,0), Vec4f(0,0,0,600)};
-    cout << "Set Dist: " << getSetDistance(templateLines, lines) << endl;
     
     for( size_t i = 0; i < templateLines.size(); i++ )
     {
@@ -238,14 +195,11 @@ int main( int argc, char** argv )
         line( src, Point(l[0], l[1]), Point(l[2], l[3]), Scalar(255,0,255), 2, 0);
     }
     
-    cout << "Set Dist: " << getSetDistance(templateLines, lines) << endl;
-    
     Mat matched = imread("chyehoo2.png", 1);
     
-    
+    // Find closest detected line for each template line
     vector<Vec4f> templateMatches(templateLines.size());
     for(int i = 0; i < templateLines.size(); i++)
-    //for(int i = 0; i < 4; i++)
     {
         Vec4f closest;
         float closestDist = 9999;
@@ -260,16 +214,19 @@ int main( int argc, char** argv )
         }
         
         line( matched, Point(closest[0], closest[1]), Point(closest[2], closest[3]), Scalar(255,0,255), 2, 0);
-        cout << "closest dist: " << closestDist << endl;
         templateMatches[i] = closest;
         
+        // Draw connections between matched line pairs
+        /*
         Vec2f tempMid = Vec2f( ((templateLines[i][0] + templateLines[i][2] )/2) , ((templateLines[i][1] + templateLines[i][3] )/2) );
         Vec2f matchMid = Vec2f( ((closest[0] + closest[2] )/2) , ((closest[1] + closest[3] )/2) );
-        //line( src, Point(tempMid[0], tempMid[1]), Point(matchMid[0], matchMid[1]), Scalar(255,255,255), 1, 0);
+        line( src, Point(tempMid[0], tempMid[1]), Point(matchMid[0], matchMid[1]), Scalar(255,255,255), 1, 0);
+        */
     }
     
     imshow("src", src);
     
+    // Take template lines and convert them to homogenous coordinates
     vector<Vec3f> set1 = vector<Vec3f>(templateLines.size());
     for(int i = 0; i < templateLines.size(); i++){
         set1[i] = Vec3f(templateLines[i][0], templateLines[i][1], 1).cross( Vec3f(templateLines[i][2], templateLines[i][3], 1 ) );
@@ -281,6 +238,7 @@ int main( int argc, char** argv )
         cout << "Line 1: " << set1[i] << endl;
     }
     
+    // Take detected lines and convert them to homogenous coordinates
     vector<Vec3f> set2 = vector<Vec3f>(templateMatches.size());
     for(int i = 0; i < templateMatches.size(); i++){
         set2[i] = Vec3f(templateMatches[i][0], templateMatches[i][1], 1).cross( Vec3f(templateMatches[i][2], templateMatches[i][3], 1 ) );
@@ -292,6 +250,9 @@ int main( int argc, char** argv )
         cout << "Line 2: " << set2[i] << endl;
     }
     
+    cout << "\n\n";
+    
+    // Calculate centroid of both point sets
     /*
     Point2f centroid = Point2f(0.0, 0.0);
     for(int i = 0; i < templateLines.size(); i++){
@@ -307,7 +268,6 @@ int main( int argc, char** argv )
     
     
     Mat aMat = Mat(0,9,CV_32F);
-    
     for(int i = 0; i < templateMatches.size(); i++){
         float x, y, u, v;
         
@@ -344,6 +304,7 @@ int main( int argc, char** argv )
     if(templateLines.size() == 4){
         //aMat.resize(9, cv::Scalar(0));
     }
+    
     cout << "aMat size = " << aMat.size << "\n" ;
     //cout << "aMat  = " << aMat << "\n\n" ;
     
