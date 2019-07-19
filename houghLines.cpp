@@ -134,11 +134,11 @@ float getSetDistance(vector<Vec4f> templateLines, vector<Vec4f> detectedLines){
 
 int main( int argc, char** argv )
 {
-    vector<Vec4f> lines = getLines("chyehoo2.png");
+    vector<Vec4f> lines = getLines("chyehoo.png");
     //lines.push_back(Vec4f(80+120,95+130,120,600+130));
-    vector<Vec4f> lines2 = getLines("chyehoo.png");
-    Mat src = imread("chyehoo2.png", 1);
-    Mat src2 = imread("chyehoo.png", 1);
+    vector<Vec4f> lines2 = getLines("chyehoo2.png");
+    Mat src = imread("chyehoo.png", 1);
+    Mat src2 = imread("chyehoo2.png", 1);
     
     vector<Point2f> srcPoints, src2Points;
     int n = 0;
@@ -192,7 +192,7 @@ int main( int argc, char** argv )
         templateLines[i][3] += 130;
         
         Vec4f l = templateLines[i];
-        line( src, Point(l[0], l[1]), Point(l[2], l[3]), Scalar(255,0,255), 2, 0);
+        line( src2, Point(l[0], l[1]), Point(l[2], l[3]), Scalar(255,0,255), 2, 0);
     }
     
     Mat matched = imread("chyehoo2.png", 1);
@@ -204,12 +204,12 @@ int main( int argc, char** argv )
         Vec4f closest;
         float closestDist = 9999;
         
-        for(int j = 0; j < lines.size(); j++)
+        for(int j = 0; j < lines2.size(); j++)
         {
-            if( lineDistance(templateLines[i], lines[j]) < closestDist)
+            if( lineDistance(templateLines[i], lines2[j]) < closestDist)
             {
-                closest = lines[j];
-                closestDist = lineDistance(templateLines[i], lines[j]);
+                closest = lines2[j];
+                closestDist = lineDistance(templateLines[i], lines2[j]);
             }
         }
         
@@ -224,7 +224,7 @@ int main( int argc, char** argv )
         */
     }
     
-    imshow("src", src);
+    imshow("src2", src2);
     
     // Take template lines and convert them to homogenous coordinates
     vector<Vec3f> set1 = vector<Vec3f>(templateLines.size());
@@ -334,8 +334,7 @@ int main( int argc, char** argv )
     
     Mat warp = imread("chyehoo.png");
     Mat warped;
-    
-    
+   
     warpPerspective(warp, warped, homography, Size(warp.cols, warp.rows));
     
     
