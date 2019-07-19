@@ -34,7 +34,6 @@ float getGradient(Vec4f v)
     return vGrad;
 }
 
-
 /** Compare lines by gradient */
 bool compareVec(Vec4f v1, Vec4f v2)
 {
@@ -181,6 +180,7 @@ int main( int argc, char** argv )
     }
     
     vector<Vec4f> templateLines { Vec4f(0,0,550,0), Vec4f(0,600,550,600),  Vec4f(550,0,550,600), Vec4f(0,600,550,0), Vec4f(0,0,0,600)};
+    //vector<Vec4f> templateLines { Vec4f(0,0,1440,0), Vec4f(0,800,1400,800),  Vec4f(1440,0,1440,800), Vec4f(0,0,0,800), Vec4f(430,0,430,800)};
     
     for( size_t i = 0; i < templateLines.size(); i++ )
     {
