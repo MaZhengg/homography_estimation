@@ -40,6 +40,17 @@ bool compareVec(Vec4f v1, Vec4f v2)
     return (getGradient(v1) < getGradient(v2));
 }
 
+double getAngle(Vec4f line1, Vec4f line2){
+    double angle1 = atan2( ( line1[3] - line1[1] ), ( line1[2] - line1[0] ) );
+    double angle2 = atan2( ( line2[3] - line2[1] ), ( line2[2] - line2[0] ) );
+    angle1 *= (180/ CV_PI);
+    angle2 *= (180/ CV_PI);
+    if(angle1 < 0) angle1 = 180 + angle1;
+    if(angle2 < 0) angle2 = 180 + angle2;
+    cout << "A1: " << angle1 << " , A2: " << angle2 << endl;
+    return abs(angle1-angle2);
+}
+
 /** Return vector of all detected Hough lines in given image */
 vector<Vec4f> getLines(String filename)
 {
@@ -61,7 +72,7 @@ vector<Vec4f> getLines(String filename)
     cvtColor(dst, cdst, COLOR_GRAY2BGR);
     
     vector<Vec4f> lines;
-    HoughLinesP(dst, lines, 1, CV_PI/360, 240, 30, 45 );
+    HoughLinesP(dst, lines, 1, CV_PI/180, 240, 30, 45 );
     
     /*
     sort(lines.begin(), lines.end(), compareVec); // Sort lines by gradient to make removing duplicates easier
@@ -89,6 +100,54 @@ vector<Vec4f> getLines(String filename)
     }
     */
     
+    /*
+    RNG rng;
+    
+    vector<vector<Point> > contours;
+    findContours( thresh, contours, RETR_TREE, CHAIN_APPROX_SIMPLE );
+    vector<vector<Point> > contours_poly( contours.size() );
+    Rect boundRect;
+    vector<Point2f>centers( contours.size() );
+    vector<float>radius( contours.size() );
+    int biggest = 0;
+    
+    for( size_t i = 0; i < contours.size(); i++ )
+    {
+        approxPolyDP( contours[i], contours_poly[i], 3, true );
+        if(boundingRect( contours_poly[i] ).area() > biggest){
+            boundRect = boundingRect( contours_poly[i] );
+            biggest = boundingRect( contours_poly[i] ).area();
+        }
+    }
+    Mat drawing = Mat::zeros( thresh.size(), CV_8UC3 );
+    Scalar color = Scalar( 255, 255, 0 );
+    for( size_t i = 0; i< contours.size(); i++ )
+    {
+        drawContours( drawing, contours_poly, (int)i, color );
+    }
+    color = Scalar(0, 255, 0);
+    rectangle( drawing, boundRect.tl(), boundRect.br(), color, 2 );
+    imshow( "Contours", drawing );
+    
+    
+    vector<vector<Point>> hull( contours.size() );
+    for( size_t i = 0; i < contours.size(); i++ )
+    {
+        convexHull( contours[i], hull[i] );
+    }
+    drawing = Mat::zeros( dst.size(), CV_8UC3 );
+    for( size_t i = 0; i< contours.size(); i++ )
+    {
+        Scalar color = Scalar( rng.uniform(0, 256), rng.uniform(0,256), rng.uniform(0,256) );
+        //drawContours( drawing, contours, (int)i, color );
+        drawContours( drawing, hull, (int)i, color );
+    }
+    imshow( "Hull demo", drawing );
+    
+    */
+    
+    
+    
     return lines;
 }
 
@@ -97,19 +156,19 @@ float lineLength(Vec4f line){
     return sqrt( pow((line[2] - line[0]), 2) + pow((line[1] - line[3]), 2) ) ;
 }
 
-/** Calculate the distance between two lines */
+/** Calculate the Hausdorff distance between two lines */
 float lineDistance(Vec4f line1, Vec4f line2){
     
     Vec4f ac, bd, ad, bc;
-    ac = Vec4f(line1[0], line1[1], line2[0], line2[1] );
-    bd = Vec4f(line1[2], line1[3], line2[2], line2[3] );
-    ad = Vec4f(line1[0], line1[1], line2[2], line2[3] );
-    bc = Vec4f(line1[2], line1[3], line2[0], line2[1] );
+    ac = Vec4f( line1[0], line1[1], line2[0], line2[1] );
+    bd = Vec4f( line1[2], line1[3], line2[2], line2[3] );
+    ad = Vec4f( line1[0], line1[1], line2[2], line2[3] );
+    bc = Vec4f( line1[2], line1[3], line2[0], line2[1] );
     
     return min(    max( lineLength(ac),lineLength(bd)),     max( lineLength(ad),lineLength(bc))       );
 }
 
-/** Calculate the total distance between two line sets */
+/** Calculate the total Hausdorff distance between two line sets */
 float getSetDistance(vector<Vec4f> templateLines, vector<Vec4f> detectedLines){
     float totalDistance = 0.0;
     
@@ -134,53 +193,30 @@ float getSetDistance(vector<Vec4f> templateLines, vector<Vec4f> detectedLines){
 
 int main( int argc, char** argv )
 {
-    vector<Vec4f> lines = getLines("chyehoo.png");
+    vector<Vec4f> lines = getLines("test.png");
     //lines.push_back(Vec4f(80+120,95+130,120,600+130));
-    vector<Vec4f> lines2 = getLines("chyehoo2.png");
-    Mat src = imread("chyehoo.png", 1);
-    Mat src2 = imread("chyehoo2.png", 1);
-    
-    vector<Point2f> srcPoints, src2Points;
-    int n = 0;
-    
+    vector<Vec4f> lines2 = getLines("test.png");
+    Mat src = imread("test.png", 1);
+    Mat src2 = imread("test.png", 1);
+
     // Draw detected lines
     for( size_t i = 0; i < lines.size(); i++ )
     {
         Vec4f l = lines[i];
         line( src, Point(l[0], l[1]), Point(l[2], l[3]), Scalar(0,0,255), 2, 0);
-        
-        
-        float xStep = (l[2] - l[0])/10;
-        float yStep = (l[3] - l[1])/10;
-        
-        for(int j = 0; j < 10; j++){
-            srcPoints.push_back(   Point( l[0]+xStep, l[1]+yStep )     );
-            xStep += (l[2] - l[0])/10;
-            yStep += (l[3] - l[1])/10;
-        }
-
-        n += 2;
     }
     
     for( size_t i = 0; i < lines2.size(); i++ )
     {
         Vec4f l = lines2[i];
         line( src2, Point(l[0], l[1]), Point(l[2], l[3]), Scalar(0,0,255), 2, 0);
-        
-        float xStep = (l[2] - l[0])/10;
-        float yStep = (l[3] - l[1])/10;
-        
-        for(int j = 0; j < 10; j++){
-            src2Points.push_back(   Point( l[0]+xStep, l[1]+yStep )     );
-            xStep += (l[2] - l[0])/10;
-            yStep += (l[3] - l[1])/10;
-        }
-
-        n += 2;
     }
     
-    vector<Vec4f> templateLines { Vec4f(0,0,550,0), Vec4f(0,600,550,600),  Vec4f(550,0,550,600), Vec4f(0,600,550,0), Vec4f(0,0,0,600)};
-    //vector<Vec4f> templateLines { Vec4f(0,0,1440,0), Vec4f(0,800,1400,800),  Vec4f(1440,0,1440,800), Vec4f(0,0,0,800), Vec4f(430,0,430,800)};
+    imshow("wtf", src);
+    
+    //vector<Vec4f> templateLines { Vec4f(0,0,550,0), Vec4f(0,600,550,600),  Vec4f(550,0,550,600), Vec4f(0,600,550,0), Vec4f(0,0,0,600)};
+    vector<Vec4f> templateLines { Vec4f(0,0,1440,0), Vec4f(0,800,1400,800),  Vec4f(1440,0,1440,800), Vec4f(0,0,0,800), Vec4f(430,0,430,800)};
+    //vector<Vec4f> templateLines = lines;
     
     for( size_t i = 0; i < templateLines.size(); i++ )
     {
@@ -195,33 +231,51 @@ int main( int argc, char** argv )
         line( src2, Point(l[0], l[1]), Point(l[2], l[3]), Scalar(255,0,255), 2, 0);
     }
     
-    Mat matched = imread("chyehoo2.png", 1);
+    Mat matched = imread("test.png", 1);
     
     // Find closest detected line for each template line
+    vector<int> alreadyMatched;
     vector<Vec4f> templateMatches(templateLines.size());
     for(int i = 0; i < templateLines.size(); i++)
     {
+
         Vec4f closest;
-        float closestDist = 9999;
+        float closestDist = 999999;
         
         for(int j = 0; j < lines2.size(); j++)
         {
             if( lineDistance(templateLines[i], lines2[j]) < closestDist)
             {
-                closest = lines2[j];
-                closestDist = lineDistance(templateLines[i], lines2[j]);
+                //cout << i << ", " << j << " = " << lineDistance(templateLines[i], lines2[j])<< endl;
+                if( getAngle(templateLines[i], lines2[j]) < 80 ){
+                    bool flag = false;
+                    for(int n = 0; n < alreadyMatched.size(); n++){
+                        if(j == alreadyMatched[n]){
+                            flag = true;
+                        }
+                    }
+                    
+                    if(!flag){
+                        closest = lines2[j];
+                        closestDist = lineDistance(templateLines[i], lines2[j]);
+                        alreadyMatched.push_back(j);
+                    }
+                }
             }
         }
-        
         line( matched, Point(closest[0], closest[1]), Point(closest[2], closest[3]), Scalar(255,0,255), 2, 0);
         templateMatches[i] = closest;
         
         // Draw connections between matched line pairs
-        /*
+        
         Vec2f tempMid = Vec2f( ((templateLines[i][0] + templateLines[i][2] )/2) , ((templateLines[i][1] + templateLines[i][3] )/2) );
         Vec2f matchMid = Vec2f( ((closest[0] + closest[2] )/2) , ((closest[1] + closest[3] )/2) );
-        line( src, Point(tempMid[0], tempMid[1]), Point(matchMid[0], matchMid[1]), Scalar(255,255,255), 1, 0);
-        */
+        line( src2, Point(tempMid[0], tempMid[1]), Point(matchMid[0], matchMid[1]), Scalar(0,255,100), 2, 0);
+        
+    }
+    
+    for(int i = 0; i < templateLines.size(); i++){
+        cout << templateLines[i] << " to " << templateMatches[i] << ",    angle: " << getAngle(templateLines[i], templateMatches[i]) << endl;;
     }
     
     imshow("src2", src2);
@@ -332,7 +386,7 @@ int main( int argc, char** argv )
     
     cout << "Homography: " << homography << endl << endl;
     
-    Mat warp = imread("chyehoo.png");
+    Mat warp = imread("test.png");
     Mat warped;
    
     warpPerspective(warp, warped, homography, Size(warp.cols, warp.rows));
@@ -346,6 +400,20 @@ int main( int argc, char** argv )
     imshow("fuggg :DDDD", warped);
     
     imshow("matched", matched);
+    
+    Mat templateOriginal = Mat(warp.rows, warp.cols, CV_8UC3);
+    Mat templateWarped = Mat(warp.rows, warp.cols, CV_8UC3);
+    for(int i = 0; i < templateLines.size(); i++)
+    {
+        line( templateOriginal, Point(templateLines[i][0], templateLines[i][1]), Point(templateLines[i][2], templateLines[i][3]), Scalar(255,0,255), 2, 0);
+    }
+    warpPerspective(templateOriginal, templateWarped, homography, Size(templateOriginal.cols, templateOriginal.rows));
+    for(int i = 0; i < templateMatches.size(); i++)
+    {
+        line( templateWarped, Point(templateMatches[i][0], templateMatches[i][1]), Point(templateMatches[i][2], templateMatches[i][3]), Scalar(255,255,255), 2, 0);
+    }
+    imshow("TEMPLATE", templateWarped);
+    
     waitKey();
     
     return 0;
