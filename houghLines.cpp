@@ -40,6 +40,7 @@ bool compareVec(Vec4f v1, Vec4f v2)
     return (getGradient(v1) < getGradient(v2));
 }
 
+/** Return difference between angle of two given lines */
 double getAngle(Vec4f line1, Vec4f line2){
     double angle1 = atan2( ( line1[3] - line1[1] ), ( line1[2] - line1[0] ) );
     double angle2 = atan2( ( line2[3] - line2[1] ), ( line2[2] - line2[0] ) );
@@ -51,56 +52,7 @@ double getAngle(Vec4f line1, Vec4f line2){
     return abs(angle1-angle2);
 }
 
-/** Return vector of all detected Hough lines in given image */
-vector<Vec4f> getLines(String filename)
-{
-    src = imread(filename, 1);   // Read the file
-    
-    if(! src.data )                              // Check for invalid input
-    {
-        cout <<  "Could not open or find the image" << std::endl ;
-    }
-    
-    cvtColor(src, HSV, COLOR_BGR2HSV);
-    // Detect the field based on HSV Range Values
-    inRange(HSV, Scalar(32, 124, 51), Scalar(46, 255, 191), thresh);
-    imshow("threshold", thresh);
-    
-    Mat dst, invdst, cdst;
-    GaussianBlur( thresh, invdst, Size( 5, 5 ), 0, 0 );
-    Canny(invdst, dst, 50, 200, 3);
-    cvtColor(dst, cdst, COLOR_GRAY2BGR);
-    
-    vector<Vec4f> lines;
-    HoughLinesP(dst, lines, 1, CV_PI/180, 240, 30, 45 );
-    
-    /*
-    sort(lines.begin(), lines.end(), compareVec); // Sort lines by gradient to make removing duplicates easier
-    
-    vector<Vec4f> cleanedLines;
-    for( size_t i = 0; i < lines.size(); i++ )
-    {
-        // Remove lines that are likely to be the same as the previous line
-        if ( ( getGradient(lines[i]) < getGradient(lines[i+1]) + 0.05 ) && ( getGradient(lines[i]) > getGradient(lines[i+1]) - 0.05 ))
-        {
-            float dt = 10;
-            
-            if( (lines[i][0]  > lines[i+1][0] - dt) && (lines[i][0]  < lines[i+1][0] + dt) &&
-               (lines[i][1]  > lines[i+1][1] - dt) && (lines[i][1]  < lines[i+1][1] + dt) &&
-               (lines[i][2]  > lines[i+1][2] - dt) && (lines[i][2]  < lines[i+1][2] + dt) &&
-               (lines[i][3]  > lines[i+1][3] - dt) && (lines[i][3]  < lines[i+1][3] + dt) )
-            {
-                cout << lines[i][0] << ",    " << lines[i+1][0] << endl;
-                
-                cleanedLines.push_back(lines[i]);
-                i += 1;
-                
-            }
-        }
-    }
-    */
-    
-    /*
+void findHull(Mat thresh){
     RNG rng;
     
     vector<vector<Point> > contours;
@@ -135,7 +87,7 @@ vector<Vec4f> getLines(String filename)
     {
         convexHull( contours[i], hull[i] );
     }
-    drawing = Mat::zeros( dst.size(), CV_8UC3 );
+    drawing = Mat::zeros( thresh.size(), CV_8UC3 );
     for( size_t i = 0; i< contours.size(); i++ )
     {
         Scalar color = Scalar( rng.uniform(0, 256), rng.uniform(0,256), rng.uniform(0,256) );
@@ -143,11 +95,57 @@ vector<Vec4f> getLines(String filename)
         drawContours( drawing, hull, (int)i, color );
     }
     imshow( "Hull demo", drawing );
+}
+
+/** Return vector of all detected Hough lines in given image */
+vector<Vec4f> getLines(String filename)
+{
+    src = imread(filename, 1);   // Read the file
     
+    if(! src.data )                              // Check for invalid input
+    {
+        cout <<  "Could not open or find the image" << std::endl ;
+    }
+    
+    cvtColor(src, HSV, COLOR_BGR2HSV);
+    // Detect the field based on HSV Range Values
+    inRange(HSV, Scalar(32, 124, 51), Scalar(46, 255, 191), thresh);
+    imshow("threshold", thresh);
+    
+    Mat dst, invdst, cdst;
+    GaussianBlur( thresh, invdst, Size( 5, 5 ), 0, 0 );
+    Canny(invdst, dst, 50, 200, 3);
+    cvtColor(dst, cdst, COLOR_GRAY2BGR);
+    imshow("canny", dst);
+    vector<Vec4f> lines;
+    HoughLinesP(dst, lines, 1, CV_PI/180, 240, 30, 45 );
+    
+    /*
+    sort(lines.begin(), lines.end(), compareVec); // Sort lines by gradient to make removing duplicates easier
+    
+    vector<Vec4f> cleanedLines;
+    for( size_t i = 0; i < lines.size(); i++ )
+    {
+        // Remove lines that are likely to be the same as the previous line
+        if ( ( getGradient(lines[i]) < getGradient(lines[i+1]) + 0.05 ) && ( getGradient(lines[i]) > getGradient(lines[i+1]) - 0.05 ))
+        {
+            float dt = 10;
+            
+            if( (lines[i][0]  > lines[i+1][0] - dt) && (lines[i][0]  < lines[i+1][0] + dt) &&
+               (lines[i][1]  > lines[i+1][1] - dt) && (lines[i][1]  < lines[i+1][1] + dt) &&
+               (lines[i][2]  > lines[i+1][2] - dt) && (lines[i][2]  < lines[i+1][2] + dt) &&
+               (lines[i][3]  > lines[i+1][3] - dt) && (lines[i][3]  < lines[i+1][3] + dt) )
+            {
+                cout << lines[i][0] << ",    " << lines[i+1][0] << endl;
+                
+                cleanedLines.push_back(lines[i]);
+                i += 1;
+                
+            }
+        }
+    }
     */
-    
-    
-    
+    findHull(thresh);
     return lines;
 }
 
@@ -191,6 +189,11 @@ float getSetDistance(vector<Vec4f> templateLines, vector<Vec4f> detectedLines){
 }
 
 
+////////////////////////////////////////////////////////////////////////
+///                 MAIN METHOD                                      ///
+////////////////////////////////////////////////////////////////////////
+
+
 int main( int argc, char** argv )
 {
     vector<Vec4f> lines = getLines("test.png");
@@ -211,8 +214,6 @@ int main( int argc, char** argv )
         Vec4f l = lines2[i];
         line( src2, Point(l[0], l[1]), Point(l[2], l[3]), Scalar(0,0,255), 2, 0);
     }
-    
-    imshow("wtf", src);
     
     //vector<Vec4f> templateLines { Vec4f(0,0,550,0), Vec4f(0,600,550,600),  Vec4f(550,0,550,600), Vec4f(0,600,550,0), Vec4f(0,0,0,600)};
     vector<Vec4f> templateLines { Vec4f(0,0,1440,0), Vec4f(0,800,1400,800),  Vec4f(1440,0,1440,800), Vec4f(0,0,0,800), Vec4f(430,0,430,800)};
@@ -240,7 +241,7 @@ int main( int argc, char** argv )
     {
 
         Vec4f closest;
-        float closestDist = 999999;
+        float closestDist = 2000;
         
         for(int j = 0; j < lines2.size(); j++)
         {
