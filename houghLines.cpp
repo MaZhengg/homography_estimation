@@ -20,6 +20,67 @@ Mat src;
 Mat HSV;
 Mat thresh;
 
+class Match{
+    public:
+        int l1;
+        int l2;
+        double dist;
+    
+        Match(int line1, int line2, double distance){
+            l1 = line1;
+            l2 = line2;
+            dist = distance;
+        }
+    
+    Match(){
+        l1 = NULL;
+        l2 = NULL;
+        dist = 99999;
+    }
+    
+    // Add way to sort matches
+};
+
+bool compareMatches(Match m1, Match m2){
+    return (m1.dist < m2.dist);
+}
+
+vector<Match> getBestMatches(vector<Match> matches){
+    vector<Match> bestMatches;
+    vector<int> l1s;
+    vector<int> l2s;
+    
+    for(int i = 0; i < matches.size(); i++){
+        //cout << matches[i].dist << endl;
+        
+        /*
+         if match[i].l1 isnt already matched
+            and match[i].l2 isnt already matched
+                Add match to list
+                Add l1 to matched templateLines
+                Add l2 to matched lines
+        */
+        bool flag = false;
+        for(int j = 0; j < l1s.size(); j++){
+            if(l1s[j] == matches[i].l1 || l2s[j] == matches[i].l2){
+                flag = true;
+            }
+        }
+        
+        if(!flag){
+            bestMatches.push_back(matches[i]);
+            l1s.push_back(matches[i].l1 );
+            l2s.push_back(matches[i].l2 );
+        }
+    }
+    
+    return bestMatches;
+}
+
+Vec2f getCenter(Vec4f line){
+    return Vec2f( ((line[0] + line[2] )/2) , ((line[1] + line[3] )/2) );
+}
+
 /** Get gradient of given line */
 float getGradient(Vec4f v)
 {
@@ -34,10 +95,11 @@ float getGradient(Vec4f v)
     return vGrad;
 }
 
-/** Compare lines by gradient */
-bool compareVec(Vec4f v1, Vec4f v2)
-{
-    return (getGradient(v1) < getGradient(v2));
+double getAngle(Vec4f line1){
+        double angle1 = atan2( ( line1[3] - line1[1] ), ( line1[2] - line1[0] ) );
+        angle1 *= (180/ CV_PI);
+        if(angle1 < 0) angle1 = 180 + angle1;
+        return abs(angle1);
 }
 
 /** Return difference between angle of two given lines */
@@ -48,8 +110,107 @@ double getAngle(Vec4f line1, Vec4f line2){
     angle2 *= (180/ CV_PI);
     if(angle1 < 0) angle1 = 180 + angle1;
     if(angle2 < 0) angle2 = 180 + angle2;
-    cout << "A1: " << angle1 << " , A2: " << angle2 << endl;
+    //cout << "A1: " << angle1 << " , A2: " << angle2 << endl;
     return abs(angle1-angle2);
+}
+
+/** Compare lines by gradient */
+bool compareVec(Vec4f v1, Vec4f v2)
+{
+    //return (getGradient(v1) < getGradient(v2));
+    return (getAngle(v1) < getAngle(v2));
+}
+
+bool isEqual(const Vec4f& _l1, const Vec4f& _l2)
+{
+    Vec4f l1(_l1), l2(_l2);
+    
+    float length1 = sqrtf((l1[2] - l1[0])*(l1[2] - l1[0]) + (l1[3] - l1[1])*(l1[3] - l1[1]));
+    float length2 = sqrtf((l2[2] - l2[0])*(l2[2] - l2[0]) + (l2[3] - l2[1])*(l2[3] - l2[1]));
+    
+    float product = (l1[2] - l1[0])*(l2[2] - l2[0]) + (l1[3] - l1[1])*(l2[3] - l2[1]);
+    
+    if (fabs(product / (length1 * length2)) < cos(CV_PI / 30))
+        return false;
+    
+    float mx1 = (l1[0] + l1[2]) * 0.5f;
+    float mx2 = (l2[0] + l2[2]) * 0.5f;
+    
+    float my1 = (l1[1] + l1[3]) * 0.5f;
+    float my2 = (l2[1] + l2[3]) * 0.5f;
+    float dist = sqrtf((mx1 - mx2)*(mx1 - mx2) + (my1 - my2)*(my1 - my2));
+    
+    if (dist > std::max(length1, length2) * 0.5f)
+        return false;
+    
+    return true;
+}
+
+/** Calculate the length of a line */
+float lineLength(Vec4f line){
+    return sqrt( pow((line[2] - line[0]), 2) + pow((line[1] - line[3]), 2) ) ;
+}
+
+/** Calculate the Hausdorff distance between two lines */
+float lineDistance(Vec4f line1, Vec4f line2){
+    
+    Vec4f ac, bd, ad, bc;
+    ac = Vec4f( line1[0], line1[1], line2[0], line2[1] );
+    bd = Vec4f( line1[2], line1[3], line2[2], line2[3] );
+    ad = Vec4f( line1[0], line1[1], line2[2], line2[3] );
+    bc = Vec4f( line1[2], line1[3], line2[0], line2[1] );
+    
+    return min(    max( lineLength(ac),lineLength(bd)),     max( lineLength(ad),lineLength(bc))       );
+}
+
+/** Calculate the total Hausdorff distance between two line sets */
+float getSetDistance(vector<Vec4f> templateLines, vector<Vec4f> detectedLines){
+    float totalDistance = 0.0;
+    
+    for(int i = 0; i < templateLines.size(); i++)
+    {
+        for(int j = 0; j < detectedLines.size(); j++)
+        {
+            // For lines AB and CD, distance is defined as min(max(|𝐴𝐶|,|𝐵𝐷|),max(|𝐴𝐷|,|𝐵𝐶|))
+            Vec4f ac, bd, ad, bc;
+            ac = Vec4f(templateLines[i][0], templateLines[i][1], detectedLines[j][0], detectedLines[j][1] );
+            bd = Vec4f(templateLines[i][2], templateLines[i][3], detectedLines[j][2], detectedLines[j][3] );
+            ad = Vec4f(templateLines[i][0], templateLines[i][1], detectedLines[j][2], detectedLines[j][3] );
+            bc = Vec4f(templateLines[i][2], templateLines[i][3], detectedLines[j][0], detectedLines[j][1] );
+            
+            totalDistance += min(    max( lineLength(ac),lineLength(bd)) ,     max( lineLength(ad),lineLength(bc))       );
+        }
+    }
+    
+    return totalDistance;
+}
+
+vector<int> splitHorizontals( vector<Vec4f> lines ){
+    vector<int> labels;
+    
+    float y1 = 0.0, y2 = 0.0;
+    for(int i = 0; i < lines.size(); i++){
+        cout << lines[i][1] << " - " << lines[i][3] << endl;
+        y1 += lines[i][1];
+        y2 += lines[i][3];
+    }
+    
+    y1 /= lines.size();
+    y2 /= lines.size();
+    float avgY = (y1+y2)/2;
+    
+    cout << "Y threshold: " << avgY<< endl;
+    for(int i = 0; i < lines.size(); i++){
+        if( getCenter(lines[i])[1] < avgY ){
+            //cout << "above: " << getCenter(lines[i])[1] << ", ";
+            labels.push_back(0);
+        } else {
+            //cout << "below: " << getCenter(lines[i])[1] << ", ";
+            labels.push_back(1);
+        }
+    }
+    
+    return labels;
 }
 
 void findHull(Mat thresh){
@@ -106,6 +267,7 @@ vector<Vec4f> getLines(String filename)
     {
         cout <<  "Could not open or find the image" << std::endl ;
     }
+    Mat cleaned = src;
     
     cvtColor(src, HSV, COLOR_BGR2HSV);
     // Detect the field based on HSV Range Values
@@ -118,74 +280,72 @@ vector<Vec4f> getLines(String filename)
     cvtColor(dst, cdst, COLOR_GRAY2BGR);
     imshow("canny", dst);
     vector<Vec4f> lines;
-    HoughLinesP(dst, lines, 1, CV_PI/180, 240, 30, 45 );
+    HoughLinesP(dst, lines, 1, CV_PI/360, 240, 250, 45 );
     
-    /*
-    sort(lines.begin(), lines.end(), compareVec); // Sort lines by gradient to make removing duplicates easier
+  ///////////////////////////////////////////////////////////////////////////////////
     
-    vector<Vec4f> cleanedLines;
-    for( size_t i = 0; i < lines.size(); i++ )
-    {
-        // Remove lines that are likely to be the same as the previous line
-        if ( ( getGradient(lines[i]) < getGradient(lines[i+1]) + 0.05 ) && ( getGradient(lines[i]) > getGradient(lines[i+1]) - 0.05 ))
-        {
-            float dt = 10;
-            
-            if( (lines[i][0]  > lines[i+1][0] - dt) && (lines[i][0]  < lines[i+1][0] + dt) &&
-               (lines[i][1]  > lines[i+1][1] - dt) && (lines[i][1]  < lines[i+1][1] + dt) &&
-               (lines[i][2]  > lines[i+1][2] - dt) && (lines[i][2]  < lines[i+1][2] + dt) &&
-               (lines[i][3]  > lines[i+1][3] - dt) && (lines[i][3]  < lines[i+1][3] + dt) )
-            {
-                cout << lines[i][0] << ",    " << lines[i+1][0] << endl;
-                
-                cleanedLines.push_back(lines[i]);
-                i += 1;
-                
+    vector<Vec4f> sortedLines = lines;
+    vector<int> sortedAngles;
+    sort(sortedLines.begin(), sortedLines.end(), compareVec); // Sort lines by gradient to make removing duplicates easier
+    for(int i = 0; i < sortedLines.size(); i++ ){
+        float angle = getAngle(sortedLines[i]);
+        if(angle < 10){
+            sortedAngles.push_back(0);
+        } else {
+            sortedAngles.push_back( floor(angle/10) );
+        }
+        cout << angle << " label: " << floor(angle/10) << endl;
+    }
+    
+    vector<Vec4f> horizontals;
+    Mat labels;
+    int k = 1;
+    int lastOne = 0;
+    int setLabel = 0;
+    for(int i = 0; i < sortedAngles.size(); i++ ){
+        if( i == 0){
+            labels.push_back(setLabel);
+            horizontals.push_back(sortedLines[i]);
+        } else if( sortedAngles[i] == sortedAngles[i-1]){
+            if(setLabel == 0) horizontals.push_back(sortedLines[i]);
+            labels.push_back(setLabel);
+        } else {
+            cout << "Angle :" << sortedAngles[i] << ", last: " << lastOne << " new: " << setLabel+1 << " new K: " << k+1 << endl;
+            setLabel += 1;
+            labels.push_back(setLabel);
+            lastOne = setLabel;
+            k += 1;
+        }
+    }
+    Mat centers;
+    Mat splitLabels;
+    vector<int> splitVec = splitHorizontals( horizontals );
+    splitLabels = Mat( splitVec );
+    //kmeans(horizontals, 2, splitLabels, TermCriteria(TermCriteria::EPS + TermCriteria::COUNT, 10, 1.0), 1, KMEANS_PP_CENTERS, centers);
+    cout << splitLabels << endl << endl;
+    for(int i = 0; i < labels.rows; i++){
+        if(labels.at<int>(i) == 0){
+            labels.at<int>(i) = splitLabels.at<int>(i);
+        } else {
+            labels.at<int>(i) += 1;
+        }
+    }
+    
+    for(int i = 0; i < k+1; i++){
+        Scalar colour = Scalar( ( rand() % (int) ( 255 + 1 ) ), ( rand() % (int) ( 255 + 1 ) ), ( rand() % (int) ( 255 + 1 ) )); // Random colour for each cluster
+        for(int j = 0; j < labels.rows; j++){
+            if(labels.at<int>(j) == i){
+                line( cleaned, Point(sortedLines[j][0], sortedLines[j][1]), Point(sortedLines[j][2], sortedLines[j][3]), colour, 2, 0);
             }
         }
     }
-    */
-    findHull(thresh);
+    vector<Vec4f> cleanedLines;
+    int start = 0, end = 0;
+
+    imshow("Cleaned", cleaned);
+
+    //findHull(thresh);
     return lines;
-}
-
-/** Calculate the length of a line */
-float lineLength(Vec4f line){
-    return sqrt( pow((line[2] - line[0]), 2) + pow((line[1] - line[3]), 2) ) ;
-}
-
-/** Calculate the Hausdorff distance between two lines */
-float lineDistance(Vec4f line1, Vec4f line2){
-    
-    Vec4f ac, bd, ad, bc;
-    ac = Vec4f( line1[0], line1[1], line2[0], line2[1] );
-    bd = Vec4f( line1[2], line1[3], line2[2], line2[3] );
-    ad = Vec4f( line1[0], line1[1], line2[2], line2[3] );
-    bc = Vec4f( line1[2], line1[3], line2[0], line2[1] );
-    
-    return min(    max( lineLength(ac),lineLength(bd)),     max( lineLength(ad),lineLength(bc))       );
-}
-
-/** Calculate the total Hausdorff distance between two line sets */
-float getSetDistance(vector<Vec4f> templateLines, vector<Vec4f> detectedLines){
-    float totalDistance = 0.0;
-    
-    for(int i = 0; i < templateLines.size(); i++)
-    {
-        for(int j = 0; j < detectedLines.size(); j++)
-        {
-            // For lines AB and CD, distance is defined as min(max(|𝐴𝐶|,|𝐵𝐷|),max(|𝐴𝐷|,|𝐵𝐶|))
-            Vec4f ac, bd, ad, bc;
-            ac = Vec4f(templateLines[i][0], templateLines[i][1], detectedLines[j][0], detectedLines[j][1] );
-            bd = Vec4f(templateLines[i][2], templateLines[i][3], detectedLines[j][2], detectedLines[j][3] );
-            ad = Vec4f(templateLines[i][0], templateLines[i][1], detectedLines[j][2], detectedLines[j][3] );
-            bc = Vec4f(templateLines[i][2], templateLines[i][3], detectedLines[j][0], detectedLines[j][1] );
-            
-            totalDistance += min(    max( lineLength(ac),lineLength(bd)) ,     max( lineLength(ad),lineLength(bc))       );
-        }
-    }
-    
-    return totalDistance;
 }
 
 
@@ -196,7 +356,8 @@ float getSetDistance(vector<Vec4f> templateLines, vector<Vec4f> detectedLines){
 
 int main( int argc, char** argv )
 {
-    vector<Vec4f> lines = getLines("test.png");
+    vector<Vec4f> lines;
+    //vector<Vec4f> lines = getLines("test0.png");
     //lines.push_back(Vec4f(80+120,95+130,120,600+130));
     vector<Vec4f> lines2 = getLines("test.png");
     Mat src = imread("test.png", 1);
@@ -237,15 +398,22 @@ int main( int argc, char** argv )
     // Find closest detected line for each template line
     vector<int> alreadyMatched;
     vector<Vec4f> templateMatches(templateLines.size());
+    
+    vector<Match> matches;
+    
     for(int i = 0; i < templateLines.size(); i++)
     {
 
         Vec4f closest;
         float closestDist = 2000;
-        
         for(int j = 0; j < lines2.size(); j++)
         {
-            if( lineDistance(templateLines[i], lines2[j]) < closestDist)
+            float dist = lineDistance(templateLines[i], lines2[j]);
+            if( getAngle(templateLines[i], lines2[j]) < 70 ){
+                matches.push_back( Match(i, j, dist ));
+            }
+            
+            if( dist < closestDist)
             {
                 //cout << i << ", " << j << " = " << lineDistance(templateLines[i], lines2[j])<< endl;
                 if( getAngle(templateLines[i], lines2[j]) < 80 ){
@@ -274,6 +442,10 @@ int main( int argc, char** argv )
         line( src2, Point(tempMid[0], tempMid[1]), Point(matchMid[0], matchMid[1]), Scalar(0,255,100), 2, 0);
         
     }
+    
+    sort(matches.begin(), matches.end(), compareMatches);
+    vector<Match> bestMatches = getBestMatches(matches);
+
     
     for(int i = 0; i < templateLines.size(); i++){
         cout << templateLines[i] << " to " << templateMatches[i] << ",    angle: " << getAngle(templateLines[i], templateMatches[i]) << endl;;
@@ -413,11 +585,24 @@ int main( int argc, char** argv )
     {
         line( templateWarped, Point(templateMatches[i][0], templateMatches[i][1]), Point(templateMatches[i][2], templateMatches[i][3]), Scalar(255,255,255), 2, 0);
     }
-    imshow("TEMPLATE", templateWarped);
     
+    Mat heck = imread("test.png");
+    
+    cout << "Total set distance: " << getSetDistance(templateLines, templateMatches) << endl;
+    int best = 0;
+    for(int i = 0; i < bestMatches.size(); i++){
+        best += bestMatches[i].dist;
+        
+        line( heck, Point(lines2[bestMatches[i].l2][0], lines2[bestMatches[i].l2][1]), Point(lines2[bestMatches[i].l2][2], lines2[bestMatches[i].l2][3]), Scalar(255,0,255), 2, 0);
+        cout << i << ",";
+    }
+    cout << "Best set distance: " << best << endl;
+    
+             imshow("heck", heck);
+    
+    
+    imshow("TEMPLATE", templateWarped);
     waitKey();
     
     return 0;
 }
-
-
