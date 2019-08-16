@@ -1,6 +1,6 @@
 //
-//  main.cpp
-//  homographytest
+//  HomographyFromPoints.cpp
+//  Calculates a homography between two point sets using DLT algorithm
 //
 //  Created by Patrick Skinner on 15/07/19.
 //  Copyright © 2019 Patrick Skinner. All rights reserved.
