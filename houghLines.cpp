@@ -4,7 +4,7 @@
 //
 //  Created by Patrick Skinner on 24/05/19.
 //  Copyright © 2019 Patrick Skinner. All rights reserved.
-//
+//*
 
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
@@ -24,6 +24,7 @@ class Match{
     public:
         int l1;
         int l2;
+
         double dist;
     
         Match(int line1, int line2, double distance){
@@ -280,7 +281,7 @@ vector<Vec4f> getLines(String filename)
     cvtColor(dst, cdst, COLOR_GRAY2BGR);
     imshow("canny", dst);
     vector<Vec4f> lines;
-    HoughLinesP(dst, lines, 1, CV_PI/360, 240, 250, 45 );
+    HoughLinesP(dst, lines, 1, CV_PI/180, 240, 250, 45 );
     
   ///////////////////////////////////////////////////////////////////////////////////
     
@@ -339,9 +340,35 @@ vector<Vec4f> getLines(String filename)
             }
         }
     }
+    
+    
     vector<Vec4f> cleanedLines;
     int start = 0, end = 0;
 
+    for(int i = 0; i < k+1; i++){
+        Vec4f avgLine = Vec4f(0,0,0,0);
+        int count = 0;
+        for(int j = 0; j < labels.rows; j++){
+            if(labels.at<int>(j) == i){
+                avgLine[0] += sortedLines[j][0];
+                avgLine[1] += sortedLines[j][1];
+                avgLine[2] += sortedLines[j][2];
+                avgLine[3] += sortedLines[j][3];
+                count++;
+            }
+        }
+        
+        avgLine[0] /= count;
+        avgLine[1] /= count;
+        avgLine[2] /= count;
+        avgLine[3] /= count;
+        cleanedLines.push_back(avgLine);
+    }
+    
+    for(int i = 0; i < cleanedLines.size(); i++){
+        line( cleaned, Point(cleanedLines[i][0], cleanedLines[i][1]), Point(cleanedLines[i][2], cleanedLines[i][3]), Scalar(0,0,255), 2, 0);
+    }
+    
     imshow("Cleaned", cleaned);
 
     //findHull(thresh);
@@ -382,13 +409,13 @@ int main( int argc, char** argv )
     
     for( size_t i = 0; i < templateLines.size(); i++ )
     {
-        
+        /*
         templateLines[i][0] += 120;
         templateLines[i][2] += 120;
         
         templateLines[i][1] += 130;
         templateLines[i][3] += 130;
-        
+        */
         Vec4f l = templateLines[i];
         line( src2, Point(l[0], l[1]), Point(l[2], l[3]), Scalar(255,0,255), 2, 0);
     }
@@ -432,20 +459,34 @@ int main( int argc, char** argv )
                 }
             }
         }
-        line( matched, Point(closest[0], closest[1]), Point(closest[2], closest[3]), Scalar(255,0,255), 2, 0);
+        //line( matched, Point(closest[0], closest[1]), Point(closest[2], closest[3]), Scalar(255,0,255), 2, 0);
         templateMatches[i] = closest;
         
         // Draw connections between matched line pairs
         
         Vec2f tempMid = Vec2f( ((templateLines[i][0] + templateLines[i][2] )/2) , ((templateLines[i][1] + templateLines[i][3] )/2) );
         Vec2f matchMid = Vec2f( ((closest[0] + closest[2] )/2) , ((closest[1] + closest[3] )/2) );
-        line( src2, Point(tempMid[0], tempMid[1]), Point(matchMid[0], matchMid[1]), Scalar(0,255,100), 2, 0);
-        
+        //line( src2, Point(tempMid[0], tempMid[1]), Point(matchMid[0], matchMid[1]), Scalar(0,255,100), 2, 0);
     }
     
     sort(matches.begin(), matches.end(), compareMatches);
     vector<Match> bestMatches = getBestMatches(matches);
 
+    //////////////////////////////////*
+    /*
+    templateLines.clear();
+    templateMatches.clear();
+    */
+    vector<Vec4f> tl;
+    vector<Vec4f> tm;
+     
+    for(int i = 0; i < bestMatches.size(); i++){
+        tl.push_back(templateLines[bestMatches[i].l1]);
+        tm.push_back(lines2[bestMatches[i].l2]);
+    }
+    
+    //templateLines = tl;
+    //templateMatches = tm;
     
     for(int i = 0; i < templateLines.size(); i++){
         cout << templateLines[i] << " to " << templateMatches[i] << ",    angle: " << getAngle(templateLines[i], templateMatches[i]) << endl;;
@@ -453,6 +494,8 @@ int main( int argc, char** argv )
     
     imshow("src2", src2);
     
+    
+
     // Take template lines and convert them to homogenous coordinates
     vector<Vec3f> set1 = vector<Vec3f>(templateLines.size());
     for(int i = 0; i < templateLines.size(); i++){
