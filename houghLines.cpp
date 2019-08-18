@@ -112,6 +112,13 @@ float lineLength(Vec4f line){
     return sqrt( pow((line[2] - line[0]), 2) + pow((line[1] - line[3]), 2) ) ;
 }
 
+
+float midpointDistance(Vec4f line1, Vec4f line2){
+    Vec2f mid1 = getCenter(line1);
+    Vec2f mid2 = getCenter(line2);
+    return abs( lineLength( Vec4f(mid1[0], mid1[1], mid2[0], mid2[1] )));
+}
+
 /** Calculate the Hausdorff distance between two lines */
 float lineDistance(Vec4f line1, Vec4f line2){
     
@@ -164,8 +171,10 @@ vector<Vec4f> getLines(String filename)
     cvtColor(dst, cdst, COLOR_GRAY2BGR);
     
     vector<Vec4f> lines;
-    HoughLinesP(dst, lines, 1, CV_PI/180, 240, 250, 45 );
+    HoughLinesP(dst, lines, 2, CV_PI/180, 240, 250, 45 );
     
+    for(int i = 0; i < lines.size(); i++ ) line( cdst, Point(lines[i][0], lines[i][1]), Point(lines[i][2], lines[i][3]), Scalar(255,0,0), 2, 0);
+    imshow("Lines", cdst);
     return lines;
 }
 
@@ -174,7 +183,6 @@ vector<int> splitHorizontals( vector<Vec4f> lines ){
     
     float y1 = 0.0, y2 = 0.0;
     for(int i = 0; i < lines.size(); i++){
-        cout << lines[i][1] << " - " << lines[i][3] << endl;
         y1 += lines[i][1];
         y2 += lines[i][3];
     }
@@ -186,10 +194,8 @@ vector<int> splitHorizontals( vector<Vec4f> lines ){
     cout << "Y threshold: " << avgY<< endl;
     for(int i = 0; i < lines.size(); i++){
         if( getCenter(lines[i])[1] < avgY ){
-            //cout << "above: " << getCenter(lines[i])[1] << ", ";
             labels.push_back(0);
         } else {
-            //cout << "below: " << getCenter(lines[i])[1] << ", ";
             labels.push_back(1);
         }
     }
@@ -245,6 +251,18 @@ vector<Vec4f> cleanLines(vector<Vec4f> lines){
         }
     }
     
+    Mat clustered = imread("test.png");
+    srand(44);
+    for(int i = 0; i < k+1; i++){
+        Scalar colour = Scalar( ( rand() % (int) ( 255 + 1 ) ), ( rand() % (int) ( 255 + 1 ) ), ( rand() % (int) ( 255 + 1 ) )); // Random colour for each cluster
+        for(int j = 0; j < labels.rows; j++){
+            if(labels.at<int>(j) == i){
+                line( clustered, Point(sortedLines[j][0], sortedLines[j][1]), Point(sortedLines[j][2], sortedLines[j][3]), colour, 2, 0);
+            }
+        }
+    }
+    imshow("Clustering", clustered);
+    
     vector<Vec4f> cleanedLines;
     
     for(int i = 0; i < k+1; i++){
@@ -272,7 +290,7 @@ vector<Vec4f> cleanLines(vector<Vec4f> lines){
 
 ////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////
-///                 MAIN METHOD                                      ///
+//////////////                MAIN METHOD                 //////////////
 ////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////
 
@@ -292,12 +310,10 @@ int main( int argc, char** argv){
     
     for( size_t i = 0; i < templateLines.size(); i++ )
     {
-        
-         //templateLines[i][0] += 360;
-         //templateLines[i][2] += 360;
-         //templateLines[i][1] += 260;
-         //templateLines[i][3] += 260;
-         
+         templateLines[i][0] += 260;
+         templateLines[i][2] += 260;
+         templateLines[i][1] += 260;
+         templateLines[i][3] += 260;
     }
     
     // Find closest detected line for each template line
@@ -309,7 +325,7 @@ int main( int argc, char** argv){
     {
         for(int j = 0; j < lines.size(); j++)
         {
-            float dist = lineDistance(templateLines[i], lines[j]);
+            float dist = midpointDistance(templateLines[i], lines[j]);
             if( getAngle(templateLines[i], lines[j]) < 70 ){
                 matches.push_back( Match(templateLines[i], lines[j], dist ));
             }
