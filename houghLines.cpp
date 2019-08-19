@@ -153,6 +153,11 @@ float getSetDistance(vector<Vec4f> templateLines, vector<Vec4f> detectedLines){
     return totalDistance;
 }
 
+/** Return best fitting line for a given line set */
+Vec4f lineOfBestFit(vector<Vec4f> lines){
+    return Vec4f(0,0,0,0);
+}
+
 /** Return vector of all detected Hough lines in given image */
 vector<Vec4f> getLines(String filename)
 {
@@ -266,23 +271,24 @@ vector<Vec4f> cleanLines(vector<Vec4f> lines){
     vector<Vec4f> cleanedLines;
     
     for(int i = 0; i < k+1; i++){
-        Vec4f avgLine = Vec4f(0,0,0,0);
-        int count = 0;
+        vector<Vec2f> points;
+        
         for(int j = 0; j < labels.rows; j++){
             if(labels.at<int>(j) == i){
-                avgLine[0] += sortedLines[j][0];
-                avgLine[1] += sortedLines[j][1];
-                avgLine[2] += sortedLines[j][2];
-                avgLine[3] += sortedLines[j][3];
-                count++;
+                points.push_back( Vec2f(sortedLines[j][0], sortedLines[j][1]));
+                points.push_back( Vec2f(sortedLines[j][2], sortedLines[j][3]));
             }
         }
+        Vec4f outputLine;
+        fitLine(points, outputLine, DIST_L12, 0, 0.01, 0.01);
         
-        avgLine[0] /= count;
-        avgLine[1] /= count;
-        avgLine[2] /= count;
-        avgLine[3] /= count;
-        cleanedLines.push_back(avgLine);
+        // Convert from direction/point format to a line defined by its endpoints
+        Vec4f pushLine = Vec4f(outputLine[2] + outputLine[0]*100, // 100 is arbitrary, line length isn't considred when converted to homogenous coordinates later.
+                               outputLine[3] + outputLine[1]*100,
+                               outputLine[2] - outputLine[0]*100,
+                               outputLine[3] - outputLine[1]*100
+                               );
+        cleanedLines.push_back( pushLine );
     }
     
     return cleanedLines;
