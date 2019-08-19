@@ -153,11 +153,6 @@ float getSetDistance(vector<Vec4f> templateLines, vector<Vec4f> detectedLines){
     return totalDistance;
 }
 
-/** Return best fitting line for a given line set */
-Vec4f lineOfBestFit(vector<Vec4f> lines){
-    return Vec4f(0,0,0,0);
-}
-
 /** Return vector of all detected Hough lines in given image */
 vector<Vec4f> getLines(String filename)
 {
