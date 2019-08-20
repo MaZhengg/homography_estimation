@@ -19,6 +19,8 @@ Mat src;
 Mat HSV;
 Mat thresh;
 
+String filename = "test.png";
+
 class Match{
 public:
     Vec4f l1;
@@ -198,7 +200,7 @@ vector<Vec4f> getLines(String filename)
     cvtColor(dst, cdst, COLOR_GRAY2BGR);
     
     vector<Vec4f> lines;
-    HoughLinesP(dst, lines, 1, CV_PI/180, 240, 250, 45 );
+    HoughLinesP(dst, lines, 2, CV_PI/180, 240, 250, 45 );
     
     for(int i = 0; i < lines.size(); i++ ) line( cdst, Point(lines[i][0], lines[i][1]), Point(lines[i][2], lines[i][3]), Scalar(255,0,0), 2, 0);
     imshow("Lines", cdst);
@@ -219,7 +221,7 @@ vector<int> splitHorizontals( vector<Vec4f> lines ){
     y2 /= lines.size();
     float avgY = (y1+y2)/2;
     
-    cout << "Y threshold: " << avgY<< endl;
+    //cout << "Y threshold: " << avgY<< endl;
     for(int i = 0; i < lines.size(); i++){
         if( getCenter(lines[i])[1] < avgY ){
             labels.push_back(0);
@@ -279,7 +281,7 @@ vector<Vec4f> cleanLines(vector<Vec4f> lines){
         }
     }
     
-    Mat clustered = imread("test.png");
+    Mat clustered = imread(filename);
     srand(83);
     for(int i = 0; i < k+1; i++){
         Scalar colour = Scalar( ( rand() % (int) ( 255 + 1 ) ), ( rand() % (int) ( 255 + 1 ) ), ( rand() % (int) ( 255 + 1 ) )); // Random colour for each cluster
@@ -325,9 +327,9 @@ vector<Vec4f> cleanLines(vector<Vec4f> lines){
 
 
 int main( int argc, char** argv){
-    vector<Vec4f> rawLines = getLines("test.png");;
-    Mat src = imread("test.png");
-    vector<Vec4f> templateLines {Vec4f(0,0,0,800), Vec4f(430,0,430,800), Vec4f(1440,0,1440,800), Vec4f(0,0,1440,0), Vec4f(0,800,1400,800)};
+    vector<Vec4f> rawLines = getLines(filename);;
+    Mat src = imread(filename);
+    vector<Vec4f> templateLines {Vec4f(0,0,0,800), Vec4f(430,0,430,800), Vec4f(1440,0,1440,800), Vec4f(0,0,1440,0), Vec4f(0,800,1440,800)};
     
     vector<Vec4f> lines = cleanLines(rawLines);
     
@@ -435,7 +437,7 @@ int main( int argc, char** argv){
     ////////////// Display output for debugging //////////////
     //////////////////////////////////////////////////////////
     
-    Mat warp = imread("test.png");
+    Mat warp = imread(filename);
     
     for(int i = 0; i < templateH.size(); i++)
     {
