@@ -26,6 +26,12 @@ public:
     
     double dist;
     
+    Match(){
+        l1 = NULL;
+        l2 = NULL;
+        dist = 99999;
+    }
+    
     Match(Vec4f line1, Vec4f line2, double distance){
         l1 = line1;
         l2 = line2;
@@ -37,33 +43,54 @@ bool compareMatches(Match m1, Match m2){
     return (m1.dist < m2.dist);
 }
 
-/** for each L1, find the best matching L2 */
-vector<Match> getBestMatches(vector<Match> matches){
-    vector<Match> bestMatches;
-    vector<Vec4f> l1s;
-    vector<Vec4f> l2s;
-    
-    for(int i = 0; i < matches.size(); i++){
-        bool flag = false;
-        for(int j = 0; j < l1s.size(); j++){
-            if(l1s[j] == matches[i].l1 || l2s[j] == matches[i].l2){
-                flag = true;
-            }
-        }
-        
-        if(!flag){
-            bestMatches.push_back(matches[i]);
-            l1s.push_back(matches[i].l1 );
-            l2s.push_back(matches[i].l2 );
-        }
-    }
-    
-    return bestMatches;
-}
-
 /** Get center point of given line */
 Vec2f getCenter(Vec4f line){
     return Vec2f( ((line[0] + line[2] )/2) , ((line[1] + line[3] )/2) );
+}
+
+/** for each L1, find the best matching L2 */
+vector<Match> getBestMatches(vector<Match> matches, vector<Vec4f> templateLines){
+    vector<Match> bestMatches;
+    
+    Match candidate;
+    for(int i = 0; i < matches.size(); i++){
+        if(matches[i].dist < candidate.dist){
+            if(matches[i].l1 == templateLines[0]) candidate = matches[i]; // find best match for leftmost template line
+        }
+    }
+    bestMatches.push_back(candidate);
+    
+    for(int i = 1; i < templateLines.size()-2; i++){
+        candidate = Match();
+        for(int j = 1; j < matches.size(); j++){
+            if(matches[j].dist < candidate.dist){
+                if(matches[j].l1 == templateLines[i]){
+                    if( getCenter(matches[j].l2)[0] > getCenter(bestMatches[i-1].l2)[0] ){ // Candidate match midpoint is to the right of previous matched line
+                        candidate = matches[j];
+                    }
+                }
+            }
+        }
+        bestMatches.push_back(candidate);
+    }
+    
+    candidate = Match();
+    for( int i = 0; i < matches.size(); i++){
+        if(matches[i].dist < candidate.dist){
+            if(matches[i].l1 == templateLines[ templateLines.size()-2 ]) candidate = matches[i]; // find best match for top horizontal template line
+        }
+    }
+    bestMatches.push_back(candidate);
+    
+    candidate = Match();
+    for( int i = 0; i < matches.size(); i++){
+        if(matches[i].dist < candidate.dist){
+            if(matches[i].l1 == templateLines[ templateLines.size()-1 ]) candidate = matches[i]; // find best match for top bottom template line
+        }
+    }
+    bestMatches.push_back(candidate);
+    
+    return bestMatches;
 }
 
 /** Get gradient of given line */
@@ -171,10 +198,11 @@ vector<Vec4f> getLines(String filename)
     cvtColor(dst, cdst, COLOR_GRAY2BGR);
     
     vector<Vec4f> lines;
-    HoughLinesP(dst, lines, 2, CV_PI/180, 240, 250, 45 );
+    HoughLinesP(dst, lines, 1, CV_PI/180, 240, 250, 45 );
     
     for(int i = 0; i < lines.size(); i++ ) line( cdst, Point(lines[i][0], lines[i][1]), Point(lines[i][2], lines[i][3]), Scalar(255,0,0), 2, 0);
     imshow("Lines", cdst);
+    
     return lines;
 }
 
@@ -252,7 +280,7 @@ vector<Vec4f> cleanLines(vector<Vec4f> lines){
     }
     
     Mat clustered = imread("test.png");
-    srand(44);
+    srand(83);
     for(int i = 0; i < k+1; i++){
         Scalar colour = Scalar( ( rand() % (int) ( 255 + 1 ) ), ( rand() % (int) ( 255 + 1 ) ), ( rand() % (int) ( 255 + 1 ) )); // Random colour for each cluster
         for(int j = 0; j < labels.rows; j++){
@@ -299,7 +327,7 @@ vector<Vec4f> cleanLines(vector<Vec4f> lines){
 int main( int argc, char** argv){
     vector<Vec4f> rawLines = getLines("test.png");;
     Mat src = imread("test.png");
-    vector<Vec4f> templateLines { Vec4f(0,0,1440,0), Vec4f(0,800,1400,800),  Vec4f(1440,0,1440,800), Vec4f(0,0,0,800), Vec4f(430,0,430,800)};
+    vector<Vec4f> templateLines {Vec4f(0,0,0,800), Vec4f(430,0,430,800), Vec4f(1440,0,1440,800), Vec4f(0,0,1440,0), Vec4f(0,800,1400,800)};
     
     vector<Vec4f> lines = cleanLines(rawLines);
     
@@ -311,10 +339,10 @@ int main( int argc, char** argv){
     
     for( size_t i = 0; i < templateLines.size(); i++ )
     {
-         templateLines[i][0] += 260;
-         templateLines[i][2] += 260;
-         templateLines[i][1] += 260;
-         templateLines[i][3] += 260;
+         templateLines[i][0] += 50;
+         templateLines[i][2] += 50;
+         templateLines[i][1] += 50;
+         templateLines[i][3] += 50;
     }
     
     // Find closest detected line for each template line
@@ -334,7 +362,7 @@ int main( int argc, char** argv){
     }
     
     sort(matches.begin(), matches.end(), compareMatches);
-    vector<Match> bestMatches = getBestMatches(matches);
+    vector<Match> bestMatches = getBestMatches(matches, templateLines);
     
     vector<Vec3f> templateH = vector<Vec3f>(templateLines.size());;
     vector<Vec3f> matchedH = vector<Vec3f>(templateLines.size());;
