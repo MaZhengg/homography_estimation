@@ -78,7 +78,13 @@ vector<Match> getBestMatches(vector<Match> matches, vector<Vec4f> templateLines)
     
     candidate = Match();
     for( int i = 0; i < matches.size(); i++){
+        bool flag = false;
         if(matches[i].dist < candidate.dist){
+            for(int j = 0; j < bestMatches.size(); j++){
+                if( matches[i].l2 == bestMatches[j].l2){
+                    flag = true;   // THIS FLAG IS NOT CURRENTLY BEING USED
+                }
+            }
             if(matches[i].l1 == templateLines[ templateLines.size()-2 ]) candidate = matches[i]; // find best match for top horizontal template line
         }
     }
@@ -86,8 +92,14 @@ vector<Match> getBestMatches(vector<Match> matches, vector<Vec4f> templateLines)
     
     candidate = Match();
     for( int i = 0; i < matches.size(); i++){
+        bool flag = true;
         if(matches[i].dist < candidate.dist){
-            if(matches[i].l1 == templateLines[ templateLines.size()-1 ]) candidate = matches[i]; // find best match for top bottom template line
+            for(int j = 0; j < bestMatches.size(); j++){
+                if( matches[i].l2 == bestMatches[j].l2){
+                    flag = true;   // THIS FLAG IS NOT CURRENTLY BEING USED
+                }
+            }
+            if(matches[i].l1 == templateLines[ templateLines.size()-1 ]) candidate = matches[i]; // find best match for bottom template line
         }
     }
     bestMatches.push_back(candidate);
@@ -113,7 +125,7 @@ float getGradient(Vec4f v)
 double getAngle(Vec4f line1){
     double angle1 = atan2( ( line1[3] - line1[1] ), ( line1[2] - line1[0] ) );
     angle1 *= (180/ CV_PI);
-    if(angle1 < 0) angle1 = 180 + angle1;
+    //if(angle1 < 0) angle1 = 180 + angle1;
     return abs(angle1);
 }
 
@@ -314,8 +326,10 @@ vector<Vec4f> cleanLines(vector<Vec4f> lines){
                                outputLine[3] - outputLine[1]*100
                                );
         cleanedLines.push_back( pushLine );
+        
+        line( src, Point(pushLine[0], pushLine[1]), Point(pushLine[2], pushLine[3]), Scalar(0,0,255), 2, 0);
     }
-    
+    //imshow("Cleaned Lines", src);
     return cleanedLines;
 }
 
@@ -347,17 +361,14 @@ int main( int argc, char** argv){
          templateLines[i][3] += 50;
     }
     
-    // Find closest detected line for each template line
-    vector<int> alreadyMatched;
-    
+    // Record each possible match
     vector<Match> matches;
-    
     for(int i = 0; i < templateLines.size(); i++)
     {
         for(int j = 0; j < lines.size(); j++)
         {
             float dist = midpointDistance(templateLines[i], lines[j]);
-            if( getAngle(templateLines[i], lines[j]) < 70 ){
+            if( (getAngle(templateLines[i], lines[j]) < 70) || (getAngle(templateLines[i], lines[j]) > 170)){
                 matches.push_back( Match(templateLines[i], lines[j], dist ));
             }
         }
