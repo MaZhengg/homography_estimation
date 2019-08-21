@@ -41,6 +41,7 @@ public:
     }
 };
 
+/** compared matches by distance for sorting purposes */
 bool compareMatches(Match m1, Match m2){
     return (m1.dist < m2.dist);
 }
@@ -64,7 +65,7 @@ vector<Match> getBestMatches(vector<Match> matches, vector<Vec4f> templateLines)
     
     for(int i = 1; i < templateLines.size()-2; i++){
         candidate = Match();
-        for(int j = 1; j < matches.size(); j++){
+        for(int j = 0; j < matches.size(); j++){
             if(matches[j].dist < candidate.dist){
                 if(matches[j].l1 == templateLines[i]){
                     if( getCenter(matches[j].l2)[0] > getCenter(bestMatches[i-1].l2)[0] ){ // Candidate match midpoint is to the right of previous matched line
@@ -82,24 +83,24 @@ vector<Match> getBestMatches(vector<Match> matches, vector<Vec4f> templateLines)
         if(matches[i].dist < candidate.dist){
             for(int j = 0; j < bestMatches.size(); j++){
                 if( matches[i].l2 == bestMatches[j].l2){
-                    flag = true;   // THIS FLAG IS NOT CURRENTLY BEING USED
+                    flag = true;
                 }
             }
-            if(matches[i].l1 == templateLines[ templateLines.size()-2 ]) candidate = matches[i]; // find best match for top horizontal template line
+            if(matches[i].l1 == templateLines[ templateLines.size()-2 ] && !flag) candidate = matches[i]; // find best match for top horizontal template line
         }
     }
     bestMatches.push_back(candidate);
     
     candidate = Match();
     for( int i = 0; i < matches.size(); i++){
-        bool flag = true;
+        bool flag = false;
         if(matches[i].dist < candidate.dist){
             for(int j = 0; j < bestMatches.size(); j++){
                 if( matches[i].l2 == bestMatches[j].l2){
-                    flag = true;   // THIS FLAG IS NOT CURRENTLY BEING USED
+                    flag = true;
                 }
             }
-            if(matches[i].l1 == templateLines[ templateLines.size()-1 ]) candidate = matches[i]; // find best match for bottom template line
+            if(matches[i].l1 == templateLines[ templateLines.size()-1 ] && !flag) candidate = matches[i]; // find best match for bottom template line
         }
     }
     bestMatches.push_back(candidate);
@@ -153,7 +154,7 @@ float lineLength(Vec4f line){
     return sqrt( pow((line[2] - line[0]), 2) + pow((line[1] - line[3]), 2) ) ;
 }
 
-
+/** Return the distance between the midpoints of two lines */
 float midpointDistance(Vec4f line1, Vec4f line2){
     Vec2f mid1 = getCenter(line1);
     Vec2f mid2 = getCenter(line2);
@@ -212,7 +213,7 @@ vector<Vec4f> getLines(String filename)
     cvtColor(dst, cdst, COLOR_GRAY2BGR);
     
     vector<Vec4f> lines;
-    HoughLinesP(dst, lines, 2, CV_PI/180, 240, 250, 45 );
+    HoughLinesP(dst, lines, 2, CV_PI/360, 300, 250, 45 );
     
     for(int i = 0; i < lines.size(); i++ ) line( cdst, Point(lines[i][0], lines[i][1]), Point(lines[i][2], lines[i][3]), Scalar(255,0,0), 2, 0);
     imshow("Lines", cdst);
@@ -220,6 +221,7 @@ vector<Vec4f> getLines(String filename)
     return lines;
 }
 
+/**Split horizontal lines with matching labels into two groups, for top and bottom of the pitch */
 vector<int> splitHorizontals( vector<Vec4f> lines ){
     vector<int> labels;
     
@@ -245,6 +247,7 @@ vector<int> splitHorizontals( vector<Vec4f> lines ){
     return labels;
 }
 
+/** Find the best fitting line for each line cluster and return the line set of best fitting lines */
 vector<Vec4f> cleanLines(vector<Vec4f> lines){
     vector<Vec4f> sortedLines = lines;
     vector<int> sortedAngles;
@@ -320,16 +323,17 @@ vector<Vec4f> cleanLines(vector<Vec4f> lines){
         fitLine(points, outputLine, DIST_L12, 0, 0.01, 0.01);
         
         // Convert from direction/point format to a line defined by its endpoints
-        Vec4f pushLine = Vec4f(outputLine[2] + outputLine[0]*100, // 100 is arbitrary, line length isn't considred when converted to homogenous coordinates later.
-                               outputLine[3] + outputLine[1]*100,
-                               outputLine[2] - outputLine[0]*100,
-                               outputLine[3] - outputLine[1]*100
+        Vec4f pushLine = Vec4f(outputLine[2] + outputLine[0]*150, // 150 is arbitrary, line length isn't considered when converted to homogenous coordinates later.
+                               outputLine[3] + outputLine[1]*150,
+                               outputLine[2] - outputLine[0]*150,
+                               outputLine[3] - outputLine[1]*150
                                );
         cleanedLines.push_back( pushLine );
         
+        cout << getAngle(pushLine) << endl;
         line( src, Point(pushLine[0], pushLine[1]), Point(pushLine[2], pushLine[3]), Scalar(0,0,255), 2, 0);
     }
-    //imshow("Cleaned Lines", src);
+    imshow("Cleaned Lines", src);
     return cleanedLines;
 }
 
