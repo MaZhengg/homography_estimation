@@ -22,7 +22,7 @@ Mat thresh;
 String filename = "test.png";
 
 class Match{
-public:
+    public:
     Vec4f l1;
     Vec4f l2;
     
@@ -196,10 +196,8 @@ float getSetDistance(vector<Vec4f> templateLines, vector<Vec4f> detectedLines){
 }
 
 /** Return vector of all detected Hough lines in given image */
-vector<Vec4f> getLines(String filename)
+vector<Vec4f> getLines()
 {
-    src = imread(filename, 1);   // Read the file
-    
     if(! src.data )                              // Check for invalid input
     {
         cout <<  "Could not open or find the image" << std::endl ;
@@ -213,7 +211,7 @@ vector<Vec4f> getLines(String filename)
     cvtColor(dst, cdst, COLOR_GRAY2BGR);
     
     vector<Vec4f> lines;
-    HoughLinesP(dst, lines, 2, CV_PI/360, 300, 250, 45 );
+    HoughLinesP(dst, lines, 2, CV_PI/360, 350, 250, 45 );
     
     for(int i = 0; i < lines.size(); i++ ) line( cdst, Point(lines[i][0], lines[i][1]), Point(lines[i][2], lines[i][3]), Scalar(255,0,0), 2, 0);
     imshow("Lines", cdst);
@@ -296,7 +294,7 @@ vector<Vec4f> cleanLines(vector<Vec4f> lines){
         }
     }
     
-    Mat clustered = imread(filename);
+    Mat clustered = src.clone();
     srand(83);
     for(int i = 0; i < k+1; i++){
         Scalar colour = Scalar( ( rand() % (int) ( 255 + 1 ) ), ( rand() % (int) ( 255 + 1 ) ), ( rand() % (int) ( 255 + 1 ) )); // Random colour for each cluster
@@ -330,7 +328,6 @@ vector<Vec4f> cleanLines(vector<Vec4f> lines){
                                );
         cleanedLines.push_back( pushLine );
         
-        cout << getAngle(pushLine) << endl;
         line( src, Point(pushLine[0], pushLine[1]), Point(pushLine[2], pushLine[3]), Scalar(0,0,255), 2, 0);
     }
     imshow("Cleaned Lines", src);
@@ -345,8 +342,8 @@ vector<Vec4f> cleanLines(vector<Vec4f> lines){
 
 
 int main( int argc, char** argv){
-    vector<Vec4f> rawLines = getLines(filename);;
-    Mat src = imread(filename);
+    src = imread(filename);
+    vector<Vec4f> rawLines = getLines();;
     vector<Vec4f> templateLines {Vec4f(0,0,0,800), Vec4f(430,0,430,800), Vec4f(1440,0,1440,800), Vec4f(0,0,1440,0), Vec4f(0,800,1440,800)};
     
     vector<Vec4f> lines = cleanLines(rawLines);
@@ -452,7 +449,7 @@ int main( int argc, char** argv){
     ////////////// Display output for debugging //////////////
     //////////////////////////////////////////////////////////
     
-    Mat warp = imread(filename);
+    Mat warp = src.clone();
     
     for(int i = 0; i < templateH.size(); i++)
     {
