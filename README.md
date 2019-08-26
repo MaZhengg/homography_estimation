@@ -1,5 +1,7 @@
 # homography_estimation
 
-Demonstration of homography estimation using point and line features in an image.
+HomographyFromPoints.cpp - Demonstation of homography estimation using DLT algorithm with matched points.
 
-HoughLines.cpp uses detected lines in an image to match to a 2D line template of sports pitch markings, finding the users position relative to the pitch.
+HomographyFromLines.cpp - Demonstation of homography estimation using DLT algorithm adapted to use matched lines.
+
+HoughLines.cpp -  Uses detected Hough lines in an image to match to a 2D line template of sports pitch markings, finding the cameras position relative to the pitch.
