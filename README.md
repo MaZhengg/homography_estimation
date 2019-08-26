@@ -1,3 +1,5 @@
 # homography_estimation
 
-Simple 4 point homography estimation using Direct Linear Transformation (DLT), with plans to expand to allow the use of matched line features instead of points.
+Demonstration of homography estimation using point and line features in an image.
+
+HoughLines.cpp uses detected lines in an image to match to a 2D line template of sports pitch markings, finding the users position relative to the pitch.
