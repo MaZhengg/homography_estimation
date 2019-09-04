@@ -343,6 +343,8 @@ vector<Vec4f> cleanLines(vector<Vec4f> lines){
 
 int main( int argc, char** argv){
     src = imread(filename);
+    Mat finalDisplay = src.clone();
+    
     vector<Vec4f> rawLines = getLines();;
     vector<Vec4f> templateLines {Vec4f(0,0,0,800), Vec4f(430,0,430,800), Vec4f(1440,0,1440,800), Vec4f(0,0,1440,0), Vec4f(0,800,1440,800)};
     
@@ -461,21 +463,22 @@ int main( int argc, char** argv){
     }
     
     
-    imshow("input", warp);
+    imshow("Matching", warp);
     
-    Mat templateOriginal = Mat(warp.rows, warp.cols, CV_8UC3);
-    Mat templateWarped = Mat(warp.rows, warp.cols, CV_8UC3);
-    for(int i = 0; i < templateLines.size(); i++)
-    {
-        line( templateOriginal, Point(bestMatches[i].l1[0], bestMatches[i].l1[1]), Point(bestMatches[i].l1[2], bestMatches[i].l1[3]), Scalar(255,0,255), 2, 0);
+    std::vector<Point2f> in;
+    std::vector<Point2f> out;
+    for( int i = 0; i < templateLines.size(); i++){
+        in.push_back( Point2f( templateLines[i][0], templateLines[i][1]) );
+        in.push_back( Point2f( templateLines[i][2], templateLines[i][3]) );
     }
-    warpPerspective(templateOriginal, templateWarped, homography, Size(templateOriginal.cols, templateOriginal.rows));
-    for(int i = 0; i < templateH.size(); i++)
-    {
-        line( templateWarped, Point(bestMatches[i].l2[0], bestMatches[i].l2[1]), Point(bestMatches[i].l2[2], bestMatches[i].l2[3]), Scalar(255,255,255), 2, 0);
+        
+    perspectiveTransform( in , out, homography);
+        
+    for( int i = 0; i < out.size(); i += 2){
+        line( finalDisplay, Point(out[i].x, out[i].y), Point(out[i+1].x, out[i+1].y), Scalar(255,0,255), 2, 0);
     }
-    
-    imshow("TEMPLATE", templateWarped);
+        
+    imshow("Finale", finalDisplay);
     waitKey();
     
 }
